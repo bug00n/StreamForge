@@ -10,7 +10,7 @@ type Key interface {
 }
 
 type Value[T any] interface {
-	Merge(other T) T
+	
 }
 
 type Resoult[K Key, V Value[V]] struct {
