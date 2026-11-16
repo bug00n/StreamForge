@@ -81,3 +81,29 @@ func TestSomeJobs(t *testing.T) {
 		t.Fatal("job_2 execution timeout")
 	}
 }
+
+func TestEmpty(t *testing.T) {
+	const text string = ``
+
+	eng := CreateEngine[string, fixtures.Key, int, int](
+		5,
+		5,
+	)
+
+	partitions := fixtures.Data(text)
+	job_view := eng.Submit(
+		partitions,
+		fixtures.Mapper,
+		fixtures.Reducer,
+	)
+
+	select {
+	case <-*job_view.Done():
+		res := job_view.Load()
+		if len(res) != 0 {
+			t.Fatalf("wrong answer")
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("job execution timeout")
+	}
+}
