@@ -22,6 +22,7 @@ type Job[T any, K contracts.Key, V contracts.Value[V], R any] struct {
 	Tasks	 []task.Task_Mapper[T, K, V]
 	Buffers  []buffer.Buffer[K, V]
 	Status   JobStatus
+	Done 	 chan struct{}
 	Reducer	 func(K, []V) R
 	StartReduce func(*Job[T, K, V, R])
 	CounterMap  atomic.Int64
@@ -57,6 +58,7 @@ func MakeJob[T any, K contracts.Key, V contracts.Value[V], R any](
 		job.Buffers[i].Shuffle = make(map[K][]V)
 	}
 	job.Resoults = make(map[K]R)
+	job.Done = make(chan struct{})
 
 	return &job, JobViewer[T, K, V, R]{job: &job}
 }
@@ -99,5 +101,6 @@ func (j *Job[T, K, V, R]) NotifyReduce() {
 
 	if int(j.CounterReduce.Load()) == len(j.Buffers) {
 		j.Status = JobCompleted
+		close(j.Done)
 	}
 }

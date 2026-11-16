@@ -1,62 +1,26 @@
 package taskmanager
 
 import (
-	"strings"
 	"testing"
 
+	"github.com/bug00n/StreamForge/engine/fixtures_wc"
 	"github.com/bug00n/StreamForge/engine/task"
-	"github.com/bug00n/StreamForge/engine/contracts"
 	"github.com/bug00n/StreamForge/engine/shuffle_buffer"
 )
-
-// ---
-
-type Data string
-type Key string
-
-func (text Data) Split() []string {
-	return strings.Split(string(text), "\n")
-}
-
-func (key Key) Hash() uint32 {
-	return 0
-}
-
-func mapper(line string) []contracts.Resoult[Key, int] {
-	return nil
-}
-
-func reducer(key Key, values []int) int {
-	return 0
-}
-
-func putResMap(resoults []contracts.Resoult[Key, int]) {
-	return
-}
-
-func putResReducer(key Key, res int) {
-	return
-}
-
-func notify() {
-
-}
-
-// ---
 
 func TestMapTask(t *testing.T) {
 	text := `test`
 
-	manager := MakeManager[string, Key, int, int](
+	manager := MakeManager[string, fixtures.Key, int, int](
 		5,
 		5,
 	)
 
 	taskMap := task.MakeMapTask(
-		Data(text).Split(),
-		mapper,
-		putResMap,
-		notify,
+		fixtures.Data(text).Split(),
+		fixtures.Mapper,
+		fixtures.PutResMap,
+		fixtures.Notify,
 	)
 
 	manager.PutMapTask(taskMap)
@@ -74,20 +38,20 @@ func TestMapTask(t *testing.T) {
 }
 
 func TestReduceTask(t *testing.T) {
-	buff := buffer.Buffer[Key, int]{}
-	buff.Shuffle = make(map[Key][]int)
+	buff := buffer.Buffer[fixtures.Key, int]{}
+	buff.Shuffle = make(map[fixtures.Key][]int)
 	buff.Shuffle["test"] = append(buff.Shuffle["test"], 1)
 
-	manager := MakeManager[string, Key, int, int](
+	manager := MakeManager[string, fixtures.Key, int, int](
 		5,
 		5,
 	)
 
 	taskReduce := task.MakeReduceTask(
 		&buff,
-		reducer,
-		putResReducer,
-		notify,
+		fixtures.Reducer,
+		fixtures.PutResReducer,
+		fixtures.Notify,
 	)
 
 	manager.PutReduceTask(taskReduce)
