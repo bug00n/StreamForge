@@ -128,7 +128,14 @@ func TestSomeJobs(t *testing.T) {
 	}
 }
 
+type Data_ string
+
+func (d Data_) Split() []string {
+	return nil
+}
 func TestEmpty(t *testing.T) {
+	
+
 	const text string = ``
 
 	eng := CreateEngine[string, fixtures.Key, int, int](
@@ -138,7 +145,7 @@ func TestEmpty(t *testing.T) {
 	)
 	t.Cleanup(eng.Close)
 
-	partitions := fixtures.Data(text)
+	partitions := Data_(text)
 	job_view, err := eng.Submit(
 		partitions,
 		fixtures.Mapper,

@@ -120,7 +120,9 @@ func (e *Engine[T, K, V, R]) scheduler() {
 	defer e.schedulerWG.Done()
 	for currentJob := range e.jobs {
 		currentJob.Mu.Lock()
-		currentJob.Status = job.JobRunning
+		if currentJob.Status == job.JobPending {
+			currentJob.Status = job.JobRunning
+		}
 		currentJob.Mu.Unlock()
 		for _, mapTask := range currentJob.Tasks {
 			e.taskManager.PutMapTask(mapTask)

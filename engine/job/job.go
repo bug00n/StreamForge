@@ -48,6 +48,20 @@ func MakeJob[T any, K contracts.Key, V contracts.Value[V], R any](
 
 	job := Job[T, K, V, R]{}
 	data := partitions.Split()
+	job.Reducer = reducer
+	job.StartReduce = startReduce
+	job.Buffers = make([]buffer.Buffer[K, V], shufflePartitionsCnt)
+	for i := range job.Buffers {
+		job.Buffers[i].Shuffle = make(map[K][]V)
+	}
+	job.Resoults = make(map[K]R)
+	job.Done = make(chan struct{})
+
+	if len(data) == 0 {
+		job.Status = JobCompleted
+		close(job.Done)
+		return &job, JobViewer[T, K, V, R]{job: &job}
+	}
 
 	job.Tasks = make([]task.Task_Mapper[T, K, V], (len(data)+partSize-1)/partSize)
 	for i := 0; i < (len(data)+partSize-1)/partSize; i++ {
@@ -58,15 +72,6 @@ func MakeJob[T any, K contracts.Key, V contracts.Value[V], R any](
 			job.notifyMap,
 		)
 	}
-
-	job.Reducer = reducer
-	job.StartReduce = startReduce
-	job.Buffers = make([]buffer.Buffer[K, V], shufflePartitionsCnt)
-	for i := range job.Buffers {
-		job.Buffers[i].Shuffle = make(map[K][]V)
-	}
-	job.Resoults = make(map[K]R)
-	job.Done = make(chan struct{})
 
 	return &job, JobViewer[T, K, V, R]{job: &job}
 }
