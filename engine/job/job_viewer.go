@@ -9,16 +9,25 @@ type JobViewer[T any, K contracts.Key, V contracts.Value[V], R any] struct {
 }
 
 func (j *JobViewer[T, K, V, R]) Status() JobStatus {
+	j.job.Mu.Lock()
+	defer j.job.Mu.Unlock()
 	return j.job.Status
 }
 
 func (j *JobViewer[T, K, V, R]) Load() map[K]R {
+	j.job.Mu.Lock()
+	defer j.job.Mu.Unlock()
+
 	if j.job.Status == JobCompleted {
-		return j.job.Resoults
-	} 
+		results := make(map[K]R, len(j.job.Resoults))
+		for key, value := range j.job.Resoults {
+			results[key] = value
+		}
+		return results
+	}
 	return nil
 }
 
-func (j *JobViewer[T, K, V, R]) Done() *chan struct{} {
-	return &j.job.Done
+func (j *JobViewer[T, K, V, R]) Done() chan struct{} {
+	return j.job.Done
 }
