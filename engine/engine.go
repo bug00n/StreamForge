@@ -13,6 +13,8 @@ import (
 const defaultPartSize = 500
 
 var ErrEngineClosed = errors.New("engine is closed")
+var ErrEmptyCallback_Mapper = errors.New("mapper is nil")
+var ErrEmptyCallback_Reducer = errors.New("reducer is nil")
 
 type Engine[T any, K contracts.Key, V any, R any] struct {
 	taskManager          taskmanager.TaskManager[T, K, V, R]
@@ -74,6 +76,14 @@ func (e *Engine[T, K, V, R]) Submit(
 
 	if e.closed {
 		return job.JobViewer[T, K, V, R]{}, ErrEngineClosed
+	}
+
+	if mapper == nil {
+		return job.JobViewer[T, K, V, R]{}, ErrEmptyCallback_Mapper
+	}
+
+	if reducer == nil {
+		return job.JobViewer[T, K, V, R]{}, ErrEmptyCallback_Reducer
 	}
 
 	newJob, viewer := job.MakeJob(

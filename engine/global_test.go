@@ -134,8 +134,6 @@ func (d Data_) Split() []string {
 	return nil
 }
 func TestEmpty(t *testing.T) {
-	
-
 	const text string = ``
 
 	eng := CreateEngine[string, fixtures.Key, int, int](
@@ -209,5 +207,49 @@ func TestStopping(t *testing.T) {
 
 	if !errors.Is(err, ErrEngineClosed) {
 		t.Fatalf("Submit after Close error = %v, want %v", err, ErrEngineClosed)
+	}
+}
+
+func TestEmptyMapper(t *testing.T) {
+	const text string = `aboba`
+
+	eng := CreateEngine[string, fixtures.Key, int, int](
+		5,
+		5,
+		5,
+	)
+	t.Cleanup(eng.Close)
+
+	partitions := Data_(text)
+	_, err := eng.Submit(
+		partitions,
+		nil,
+		fixtures.Reducer,
+	)
+
+	if err.Error() != "mapper is nil" {
+		t.Fatalf("Submit should have failed")	
+	}
+}
+
+func TestEmptyReducer(t *testing.T) {
+	const text string = `aboba`
+
+	eng := CreateEngine[string, fixtures.Key, int, int](
+		5,
+		5,
+		5,
+	)
+	t.Cleanup(eng.Close)
+
+	partitions := Data_(text)
+	_, err := eng.Submit(
+		partitions,
+		fixtures.Mapper,
+		nil,
+	)
+
+	if err.Error() != "reducer is nil" {
+		t.Fatalf("Submit should have failed")	
 	}
 }
