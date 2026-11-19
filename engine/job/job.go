@@ -19,11 +19,12 @@ const (
 )
 
 type Job[T any, K contracts.Key, V any, R any] struct {
-	Tasks         []task.TaskMapper[T, K, V]
+	Tasks         []*task.TaskMapper[T, K, V]
 	Buffers       []buffer.Buffer[K, V]
 	Status        JobStatus
+	Error         error
 	Done          chan struct{}
-	Reducer       func(K, []V) R
+	Reducer       func(K, []V) (R, error)
 	StartReduce   func(*Job[T, K, V, R])
 	CounterMap    atomic.Int64
 	CounterReduce atomic.Int64
@@ -33,8 +34,8 @@ type Job[T any, K contracts.Key, V any, R any] struct {
 
 func MakeJob[T any, K contracts.Key, V any, R any](
 	partitions contracts.Data[T],
-	mapper func(T) []contracts.Result[K, V],
-	reducer func(K, []V) R,
+	mapper func(T) ([]contracts.Result[K, V], error),
+	reducer func(K, []V) (R, error),
 	startReduce func(*Job[T, K, V, R]),
 	shufflePartitionsCnt int,
 	partSize int,
@@ -63,13 +64,15 @@ func MakeJob[T any, K contracts.Key, V any, R any](
 		return &job, JobViewer[T, K, V, R]{job: &job}
 	}
 
-	job.Tasks = make([]task.TaskMapper[T, K, V], (len(data)+partSize-1)/partSize)
+	job.Tasks = make([]*task.TaskMapper[T, K, V], (len(data)+partSize-1)/partSize)
 	for i := 0; i < (len(data)+partSize-1)/partSize; i++ {
 		job.Tasks[i] = task.MakeMapTask(
 			data[i*partSize:min(len(data), (i+1)*partSize)],
 			mapper,
 			job.putResoult,
 			job.notifyMap,
+			job.CanContinue,
+			job.Fail,
 		)
 	}
 
@@ -94,9 +97,33 @@ func (j *Job[T, K, V, R]) putResoult(
 }
 
 func (j *Job[T, K, V, R]) notifyMap() {
-	if j.CounterMap.Add(1) == int64(len(j.Tasks)) {
+	if !j.CanContinue() {
+		return
+	}
+	if j.CounterMap.Add(1) == int64(len(j.Tasks)) && j.CanContinue() {
 		j.StartReduce(j)
 	}
+}
+
+func (j *Job[T, K, V, R]) CanContinue() bool {
+	j.Mu.Lock()
+	defer j.Mu.Unlock()
+	return j.Status != JobFailed && j.Status != JobCompleted
+}
+
+func (j *Job[T, K, V, R]) Fail(err error) {
+	if err == nil {
+		return
+	}
+
+	j.Mu.Lock()
+	defer j.Mu.Unlock()
+	if j.Status == JobFailed || j.Status == JobCompleted {
+		return
+	}
+	j.Error = err
+	j.Status = JobFailed
+	close(j.Done)
 }
 
 func (j *Job[T, K, V, R]) PutReduceResoult(
@@ -108,10 +135,15 @@ func (j *Job[T, K, V, R]) PutReduceResoult(
 }
 
 func (j *Job[T, K, V, R]) NotifyReduce() {
+	if !j.CanContinue() {
+		return
+	}
 	if j.CounterReduce.Add(1) == int64(len(j.Buffers)) {
 		j.Mu.Lock()
-		j.Status = JobCompleted
-		close(j.Done)
+		if j.Status != JobFailed && j.Status != JobCompleted {
+			j.Status = JobCompleted
+			close(j.Done)
+		}
 		j.Mu.Unlock()
 	}
 }

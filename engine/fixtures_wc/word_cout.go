@@ -2,10 +2,7 @@ package fixtures
 
 import (
 	"strings"
-
-//	"github.com/bug00n/StreamForge/engine/task"
 	"github.com/bug00n/StreamForge/engine/contracts"
-//	"github.com/bug00n/StreamForge/engine/shuffle_buffer"
 )
 
 type Data string
@@ -24,7 +21,7 @@ func (key Key) Hash() uint32 {
 	return hash
 }
 
-func Mapper(line string) []contracts.Result[Key, int] {
+func Mapper(line string) ([]contracts.Result[Key, int], error) {
 	words := strings.Fields(line)
 	resoult := make([]contracts.Result[Key, int], len(words))
 	for i, word := range words {
@@ -33,23 +30,21 @@ func Mapper(line string) []contracts.Result[Key, int] {
 			Value: 1,
 		}
 	}
-	return resoult
+	return resoult, nil
 }
 
-func Reducer(key Key, values []int) int {
+func Reducer(key Key, values []int) (int, error) {
 	sum := 0
 	for _, val := range values {
 		sum += val
 	}
-	return sum
+	return sum, nil
 }
 
 func PutResMap(resoults []contracts.Result[Key, int]) {
-	return
 }
 
 func PutResReducer(key Key, res int) {
-	return
 }
 
 func Notify() {

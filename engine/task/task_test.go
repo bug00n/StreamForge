@@ -20,19 +20,22 @@ func TestMakeMapTask(t *testing.T) {
 			stored = results
 		},
 		func() { notifyCalls++ },
+		func() bool { return true },
+		func(error) {},
 	)
 
 	if len(mapTask.Partition) != 2 || mapTask.Partition[0] != "a a" || mapTask.Partition[1] != "b" {
 		t.Fatalf("partition = %v, want [a a b]", mapTask.Partition)
 	}
-	if mapTask.WorkerID != -1 || mapTask.Status != TaskPending {
-		t.Fatalf("initial worker/status = %d/%v, want -1/%v", mapTask.WorkerID, mapTask.Status, TaskPending)
+	if mapTask.WorkerID != -1 || mapTask.Status() != TaskPending {
+		t.Fatalf("initial worker/status = %d/%v, want -1/%v", mapTask.WorkerID, mapTask.Status(), TaskPending)
 	}
 	if mapTask.Mapper == nil || mapTask.PutRes == nil || mapTask.Notify == nil {
 		t.Fatal("map task callbacks should be initialized")
 	}
 
-	mapTask.PutRes(mapTask.Mapper(mapTask.Partition[0]))
+	val, _ := mapTask.Mapper(mapTask.Partition[0])
+	mapTask.PutRes(val)
 	if len(stored) != 2 || stored[0].Key != "a" || stored[1].Key != "a" {
 		t.Fatalf("stored mapper results = %v, want two results for a", stored)
 	}
@@ -57,19 +60,22 @@ func TestMakeReduceTask(t *testing.T) {
 			storedKey, storedResult = key, result
 		},
 		func() { notifyCalls++ },
+		func() bool { return true },
+		func(error) {},
 	)
 
 	if reduceTask.Buffer != shuffle {
 		t.Fatal("reduce task should keep the provided buffer")
 	}
-	if reduceTask.WorkerID != -1 || reduceTask.Status != TaskPending {
-		t.Fatalf("initial worker/status = %d/%v, want -1/%v", reduceTask.WorkerID, reduceTask.Status, TaskPending)
+	if reduceTask.WorkerID != -1 || reduceTask.Status() != TaskPending {
+		t.Fatalf("initial worker/status = %d/%v, want -1/%v", reduceTask.WorkerID, reduceTask.Status(), TaskPending)
 	}
 	if reduceTask.Reducer == nil || reduceTask.PutRes == nil || reduceTask.Notify == nil {
 		t.Fatal("reduce task callbacks should be initialized")
 	}
 
-	reduceTask.PutRes("a", reduceTask.Reducer("a", reduceTask.Buffer.Shuffle["a"]))
+	val, _ := reduceTask.Reducer("a", reduceTask.Buffer.Shuffle["a"])
+	reduceTask.PutRes("a", val)
 	if storedKey != "a" || storedResult != 3 {
 		t.Fatalf("stored reduce result = %s:%d, want a:3", storedKey, storedResult)
 	}

@@ -68,8 +68,8 @@ func CreateEngine[T any, K contracts.Key, V any, R any](
 
 func (e *Engine[T, K, V, R]) Submit(
 	partitions contracts.Data[T],
-	mapper func(T) []contracts.Result[K, V],
-	reducer func(K, []V) R,
+	mapper func(T) ([]contracts.Result[K, V], error),
+	reducer func(K, []V) (R, error),
 ) (job.JobViewer[T, K, V, R], error) {
 	e.submitMu.Lock()
 	defer e.submitMu.Unlock()
@@ -120,6 +120,8 @@ func (e *Engine[T, K, V, R]) startReduce(j *job.Job[T, K, V, R]) {
 				j.Reducer,
 				j.PutReduceResoult,
 				j.NotifyReduce,
+				j.CanContinue,
+				j.Fail,
 			),
 		)
 	}
@@ -147,11 +149,7 @@ func (e *Engine[T, K, V, R]) workerMap() {
 		if !open {
 			return
 		}
-		for _, value := range currentTask.Partition {
-			results := currentTask.Mapper(value)
-			currentTask.PutRes(results)
-		}
-		currentTask.Notify()
+		currentTask.Run()
 	}
 }
 
@@ -162,10 +160,6 @@ func (e *Engine[T, K, V, R]) workerReduce() {
 		if !open {
 			return
 		}
-		for key, values := range currentTask.Buffer.Shuffle {
-			result := currentTask.Reducer(key, values)
-			currentTask.PutRes(key, result)
-		}
-		currentTask.Notify()
+		currentTask.Run()
 	}
 }

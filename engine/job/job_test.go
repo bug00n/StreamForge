@@ -1,10 +1,13 @@
 package job
 
 import (
+	"errors"
 	"sync"
 	"testing"
 
+	"github.com/bug00n/StreamForge/engine/contracts"
 	"github.com/bug00n/StreamForge/engine/fixtures_wc"
+	"github.com/bug00n/StreamForge/engine/task"
 )
 
 func TestJob(t *testing.T) {
@@ -51,7 +54,8 @@ func TestJob(t *testing.T) {
 
 	for _, mapTask := range job.Tasks {
 		for _, line := range mapTask.Partition {
-			mapTask.PutRes(mapTask.Mapper(line))
+			val, _ := mapTask.Mapper(line)
+			mapTask.PutRes(val)
 		}
 	}
 	var mapNotifyWG sync.WaitGroup
@@ -77,7 +81,8 @@ func TestJob(t *testing.T) {
 	for i := range job.Buffers {
 		for key, values := range job.Buffers[i].Shuffle {
 			shuffledCounts[key] += len(values)
-			job.PutReduceResoult(key, job.Reducer(key, values))
+			val, _ := job.Reducer(key, values)
+			job.PutReduceResoult(key, val)
 		}
 	}
 	if shuffledCounts["a"] != 2 || shuffledCounts["b"] != 1 {
@@ -140,5 +145,83 @@ func TestMakeJobRejectsNonPositivePartitionAndPartSize(t *testing.T) {
 				test.partSize,
 			)
 		})
+	}
+}
+
+func TestMapperErrorFailsJobAndSkipsOtherTasks(t *testing.T) {
+	mapperErr := errors.New("map failed")
+	mapperCalls := 0
+	mapper := func(line string) ([]contracts.Result[fixtures.Key, int], error) {
+		mapperCalls++
+		if line == "bad" {
+			return nil, mapperErr
+		}
+		return fixtures.Mapper(line)
+	}
+
+	job, viewer := MakeJob(
+		fixtures.Data("bad\ngood"),
+		mapper,
+		fixtures.Reducer,
+		func(*Job[string, fixtures.Key, int, int]) {},
+		2,
+		1,
+	)
+
+	job.Tasks[0].Run()
+	job.Tasks[1].Run()
+
+	if got := viewer.Status(); got != JobFailed {
+		t.Fatalf("status = %v, want %v", got, JobFailed)
+	}
+	if !errors.Is(viewer.Err(), mapperErr) {
+		t.Fatalf("job error = %v, want %v", viewer.Err(), mapperErr)
+	}
+	if mapperCalls != 1 {
+		t.Fatalf("mapper calls = %d, want 1 after the first task fails", mapperCalls)
+	}
+	if job.Tasks[0].Status() != task.TaskFailed || job.Tasks[1].Status() != task.TaskFailed {
+		t.Fatalf("task statuses = %v/%v, want both failed", job.Tasks[0].Status(), job.Tasks[1].Status())
+	}
+	select {
+	case <-viewer.Done():
+	default:
+		t.Fatal("Done channel should close when the job fails")
+	}
+}
+
+func TestReducerErrorFailsJob(t *testing.T) {
+	reducerErr := errors.New("reduce failed")
+	reducer := func(fixtures.Key, []int) (int, error) {
+		return 0, reducerErr
+	}
+	job, viewer := MakeJob[string, fixtures.Key, int, int](
+		fixtures.Data("a"),
+		fixtures.Mapper,
+		reducer,
+		func(*Job[string, fixtures.Key, int, int]) {},
+		1,
+		1,
+	)
+	job.Buffers[0].Shuffle["a"] = []int{1}
+
+	reduceTask := task.MakeReduceTask(
+		&job.Buffers[0],
+		reducer,
+		job.PutReduceResoult,
+		job.NotifyReduce,
+		job.CanContinue,
+		job.Fail,
+	)
+	reduceTask.Run()
+
+	if got := viewer.Status(); got != JobFailed {
+		t.Fatalf("status = %v, want %v", got, JobFailed)
+	}
+	if !errors.Is(viewer.Err(), reducerErr) {
+		t.Fatalf("job error = %v, want %v", viewer.Err(), reducerErr)
+	}
+	if reduceTask.Status() != task.TaskFailed {
+		t.Fatalf("reduce task status = %v, want %v", reduceTask.Status(), task.TaskFailed)
 	}
 }

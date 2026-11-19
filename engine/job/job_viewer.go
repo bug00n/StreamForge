@@ -5,13 +5,19 @@ import (
 )
 
 type JobViewer[T any, K contracts.Key, V any, R any] struct {
-	job	*Job[T, K, V, R]
+	job *Job[T, K, V, R]
 }
 
 func (j *JobViewer[T, K, V, R]) Status() JobStatus {
 	j.job.Mu.Lock()
 	defer j.job.Mu.Unlock()
 	return j.job.Status
+}
+
+func (j *JobViewer[T, K, V, R]) Err() error {
+	j.job.Mu.Lock()
+	defer j.job.Mu.Unlock()
+	return j.job.Error
 }
 
 func (j *JobViewer[T, K, V, R]) Load() map[K]R {

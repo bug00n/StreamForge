@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/bug00n/StreamForge/engine/fixtures_wc"
-	"github.com/bug00n/StreamForge/engine/task"
 	"github.com/bug00n/StreamForge/engine/shuffle_buffer"
+	"github.com/bug00n/StreamForge/engine/task"
 )
 
 func TestMapTask(t *testing.T) {
@@ -21,13 +21,15 @@ func TestMapTask(t *testing.T) {
 		fixtures.Mapper,
 		fixtures.PutResMap,
 		fixtures.Notify,
+		func() bool { return true },
+		func(error) {},
 	)
 
 	manager.PutMapTask(taskMap)
 	if len(manager.freeMapTasks) != 1 {
 		t.Fatal("MapTask-pipeline is incorect: failed putting into task-manager")
 	}
-	
+
 	task_ := manager.GetMapTask()
 	if len(manager.freeMapTasks) != 0 {
 		t.Fatal("MapTask-pipeline is incorect: failed getting from task-manager")
@@ -52,13 +54,15 @@ func TestReduceTask(t *testing.T) {
 		fixtures.Reducer,
 		fixtures.PutResReducer,
 		fixtures.Notify,
+		func() bool { return true },
+		func(error) {},
 	)
 
 	manager.PutReduceTask(taskReduce)
 	if len(manager.freeReduceTasks) != 1 {
 		t.Fatal("ReduceTask-pipeline is incorect: failed putting into task-manager")
 	}
-	
+
 	task_ := manager.GetReduceTask()
 	if len(manager.freeReduceTasks) != 0 {
 		t.Fatal("ReduceTask-pipeline is incorect: failed getting from task-manager")
