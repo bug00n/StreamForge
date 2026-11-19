@@ -29,10 +29,6 @@ func (m *TaskManager[T, K, V, R]) PutMapTask(task *task.TaskMapper[T, K, V]) {
 	m.freeMapTasks <- task
 }
 
-func (m *TaskManager[T, K, V, R]) GetMapTask() *task.TaskMapper[T, K, V] {
-	return <-m.freeMapTasks
-}
-
 func (m *TaskManager[T, K, V, R]) GetMapTaskOrClosed() (*task.TaskMapper[T, K, V], bool) {
 	currentTask, open := <-m.freeMapTasks
 	return currentTask, open
@@ -44,10 +40,6 @@ func (m *TaskManager[T, K, V, R]) CloseMapTasks() {
 
 func (m *TaskManager[T, K, V, R]) PutReduceTask(task *task.TaskReducer[K, V, R]) {
 	m.freeReduceTasks <- task
-}
-
-func (m *TaskManager[T, K, V, R]) GetReduceTask() *task.TaskReducer[K, V, R] {
-	return <-m.freeReduceTasks
 }
 
 func (m *TaskManager[T, K, V, R]) GetReduceTaskOrClosed() (*task.TaskReducer[K, V, R], bool) {

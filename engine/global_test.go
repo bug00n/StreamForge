@@ -253,3 +253,22 @@ func TestEmptyReducer(t *testing.T) {
 		t.Fatalf("Submit should have failed")	
 	}
 }
+
+func TestEmptyData(t *testing.T) {
+	eng := CreateEngine[string, fixtures.Key, int, int](
+		5,
+		5,
+		5,
+	)
+	t.Cleanup(eng.Close)
+
+	_, err := eng.Submit(
+		nil,
+		fixtures.Mapper,
+		fixtures.Reducer,
+	)
+
+	if err.Error() != "input data is nil" {
+		t.Fatalf("Submit should have failed")	
+	}
+}

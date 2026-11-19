@@ -34,6 +34,6 @@ func (j *JobViewer[T, K, V, R]) Load() map[K]R {
 	return nil
 }
 
-func (j *JobViewer[T, K, V, R]) Done() chan struct{} {
+func (j *JobViewer[T, K, V, R]) Done() <-chan struct{} {
 	return j.job.Done
 }

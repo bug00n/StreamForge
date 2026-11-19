@@ -15,6 +15,7 @@ const defaultPartSize = 500
 var ErrEngineClosed = errors.New("engine is closed")
 var ErrEmptyCallback_Mapper = errors.New("mapper is nil")
 var ErrEmptyCallback_Reducer = errors.New("reducer is nil")
+var ErrEmptyData = errors.New("input data is nil")
 
 type Engine[T any, K contracts.Key, V any, R any] struct {
 	taskManager          taskmanager.TaskManager[T, K, V, R]
@@ -86,6 +87,10 @@ func (e *Engine[T, K, V, R]) Submit(
 		return job.JobViewer[T, K, V, R]{}, ErrEmptyCallback_Reducer
 	}
 
+	if partitions == nil {
+		return job.JobViewer[T, K, V, R]{}, ErrEmptyData
+	}
+
 	newJob, viewer := job.MakeJob(
 		partitions,
 		mapper,
@@ -98,18 +103,26 @@ func (e *Engine[T, K, V, R]) Submit(
 	return viewer, nil
 }
 
-func (e *Engine[T, K, V, R]) Close() {
+func (e *Engine[T, K, V, R]) Shutdown() {
 	e.closeOnce.Do(func() {
 		e.submitMu.Lock()
 		e.closed = true
 		close(e.jobs)
 		e.submitMu.Unlock()
-
-		e.schedulerWG.Wait()
-		e.mapWorkersWG.Wait()
-		e.taskManager.CloseReduceTasks()
-		e.reduceWorkersWG.Wait()
 	})
+}
+
+func (e *Engine[T, K, V, R]) Wait() {
+	e.schedulerWG.Wait()
+	e.mapWorkersWG.Wait()
+
+	e.taskManager.CloseReduceTasks()
+	e.reduceWorkersWG.Wait()
+}
+
+func (e *Engine[T, K, V, R]) Close() {
+	e.Shutdown()
+	e.Wait()
 }
 
 func (e *Engine[T, K, V, R]) startReduce(j *job.Job[T, K, V, R]) {

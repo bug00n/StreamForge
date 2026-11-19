@@ -30,7 +30,7 @@ func TestMapTask(t *testing.T) {
 		t.Fatal("MapTask-pipeline is incorect: failed putting into task-manager")
 	}
 
-	task_ := manager.GetMapTask()
+	task_, _ := manager.GetMapTaskOrClosed()
 	if len(manager.freeMapTasks) != 0 {
 		t.Fatal("MapTask-pipeline is incorect: failed getting from task-manager")
 	}
@@ -63,7 +63,7 @@ func TestReduceTask(t *testing.T) {
 		t.Fatal("ReduceTask-pipeline is incorect: failed putting into task-manager")
 	}
 
-	task_ := manager.GetReduceTask()
+	task_, _ := manager.GetReduceTaskOrClosed()
 	if len(manager.freeReduceTasks) != 0 {
 		t.Fatal("ReduceTask-pipeline is incorect: failed getting from task-manager")
 	}

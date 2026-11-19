@@ -4,6 +4,7 @@ import (
 	"errors"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/bug00n/StreamForge/engine/contracts"
 	"github.com/bug00n/StreamForge/engine/fixtures_wc"
@@ -195,7 +196,7 @@ func TestReducerErrorFailsJob(t *testing.T) {
 	reducer := func(fixtures.Key, []int) (int, error) {
 		return 0, reducerErr
 	}
-	job, viewer := MakeJob[string, fixtures.Key, int, int](
+	job, viewer := MakeJob(
 		fixtures.Data("a"),
 		fixtures.Mapper,
 		reducer,
@@ -223,5 +224,56 @@ func TestReducerErrorFailsJob(t *testing.T) {
 	}
 	if reduceTask.Status() != task.TaskFailed {
 		t.Fatalf("reduce task status = %v, want %v", reduceTask.Status(), task.TaskFailed)
+	}
+}
+
+func TestJobViewerDone(t *testing.T) {
+	reducer := func(fixtures.Key, []int) (int, error) {
+		return 0, nil
+	}
+
+	job, viewer := MakeJob(
+		fixtures.Data("a"),
+		fixtures.Mapper,
+		reducer,
+		func(started *Job[string, fixtures.Key, int, int]) {
+			for i := range started.Buffers {
+				task.MakeReduceTask(
+					&started.Buffers[i],
+					started.Reducer,
+					started.PutReduceResult,
+					started.NotifyReduce,
+					started.CanContinue,
+					started.Fail,
+				).Run()
+			}
+		},
+		1,
+		1,
+	)
+	job.Tasks[0].Run()
+
+	select {
+	case <-viewer.Done():
+	case <-time.After(time.Second):
+		t.Fatal("job did not finish")
+	}
+	if viewer.Status() != JobCompleted {
+		t.Fatalf("job status = %v, want %v", viewer.Status(), JobCompleted)
+	}
+
+	select {
+	case _, ok := <-viewer.Done():
+		if ok {
+			t.Fatal("expected closed channel")
+		}
+	default:
+		t.Fatal("expected closed channel")
+	}
+
+	select {
+	case <-job.Done:
+	default:
+		t.Fatal("job.Done should also be closed")
 	}
 }
