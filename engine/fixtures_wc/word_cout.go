@@ -23,14 +23,14 @@ func (key Key) Hash() uint32 {
 
 func Mapper(line string) ([]contracts.Result[Key, int], error) {
 	words := strings.Fields(line)
-	resoult := make([]contracts.Result[Key, int], len(words))
+	result := make([]contracts.Result[Key, int], len(words))
 	for i, word := range words {
-		resoult[i] = contracts.Result[Key, int]{
+		result[i] = contracts.Result[Key, int]{
 			Key: Key(word),
 			Value: 1,
 		}
 	}
-	return resoult, nil
+	return result, nil
 }
 
 func Reducer(key Key, values []int) (int, error) {
@@ -41,7 +41,7 @@ func Reducer(key Key, values []int) (int, error) {
 	return sum, nil
 }
 
-func PutResMap(resoults []contracts.Result[Key, int]) {
+func PutResMap(results []contracts.Result[Key, int]) {
 }
 
 func PutResReducer(key Key, res int) {

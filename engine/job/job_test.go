@@ -82,7 +82,7 @@ func TestJob(t *testing.T) {
 		for key, values := range job.Buffers[i].Shuffle {
 			shuffledCounts[key] += len(values)
 			val, _ := job.Reducer(key, values)
-			job.PutReduceResoult(key, val)
+			job.PutReduceResult(key, val)
 		}
 	}
 	if shuffledCounts["a"] != 2 || shuffledCounts["b"] != 1 {
@@ -208,7 +208,7 @@ func TestReducerErrorFailsJob(t *testing.T) {
 	reduceTask := task.MakeReduceTask(
 		&job.Buffers[0],
 		reducer,
-		job.PutReduceResoult,
+		job.PutReduceResult,
 		job.NotifyReduce,
 		job.CanContinue,
 		job.Fail,

@@ -28,7 +28,7 @@ type Job[T any, K contracts.Key, V any, R any] struct {
 	StartReduce   func(*Job[T, K, V, R])
 	CounterMap    atomic.Int64
 	CounterReduce atomic.Int64
-	Resoults      map[K]R
+	Results      map[K]R
 	Mu            sync.Mutex
 }
 
@@ -55,7 +55,7 @@ func MakeJob[T any, K contracts.Key, V any, R any](
 	for i := range job.Buffers {
 		job.Buffers[i].Shuffle = make(map[K][]V)
 	}
-	job.Resoults = make(map[K]R)
+	job.Results = make(map[K]R)
 	job.Done = make(chan struct{})
 
 	if len(data) == 0 {
@@ -69,7 +69,7 @@ func MakeJob[T any, K contracts.Key, V any, R any](
 		job.Tasks[i] = task.MakeMapTask(
 			data[i*partSize:min(len(data), (i+1)*partSize)],
 			mapper,
-			job.putResoult,
+			job.putResult,
 			job.notifyMap,
 			job.CanContinue,
 			job.Fail,
@@ -79,11 +79,11 @@ func MakeJob[T any, K contracts.Key, V any, R any](
 	return &job, JobViewer[T, K, V, R]{job: &job}
 }
 
-func (j *Job[T, K, V, R]) putResoult(
-	resoults []contracts.Result[K, V],
+func (j *Job[T, K, V, R]) putResult(
+	results []contracts.Result[K, V],
 ) {
-	for i := range resoults {
-		k, v := resoults[i].Key, resoults[i].Value
+	for i := range results {
+		k, v := results[i].Key, results[i].Value
 
 		idx := int(k.Hash() % uint32(len(j.Buffers)))
 
@@ -126,11 +126,11 @@ func (j *Job[T, K, V, R]) Fail(err error) {
 	close(j.Done)
 }
 
-func (j *Job[T, K, V, R]) PutReduceResoult(
-	key K, resoults R,
+func (j *Job[T, K, V, R]) PutReduceResult(
+	key K, results R,
 ) {
 	j.Mu.Lock()
-	j.Resoults[key] = resoults
+	j.Results[key] = results
 	j.Mu.Unlock()
 }
 

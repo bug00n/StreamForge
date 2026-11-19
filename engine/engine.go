@@ -118,7 +118,7 @@ func (e *Engine[T, K, V, R]) startReduce(j *job.Job[T, K, V, R]) {
 			task.MakeReduceTask(
 				&j.Buffers[i],
 				j.Reducer,
-				j.PutReduceResoult,
+				j.PutReduceResult,
 				j.NotifyReduce,
 				j.CanContinue,
 				j.Fail,

@@ -25,8 +25,8 @@ func (j *JobViewer[T, K, V, R]) Load() map[K]R {
 	defer j.job.Mu.Unlock()
 
 	if j.job.Status == JobCompleted {
-		results := make(map[K]R, len(j.job.Resoults))
-		for key, value := range j.job.Resoults {
+		results := make(map[K]R, len(j.job.Results))
+		for key, value := range j.job.Results {
 			results[key] = value
 		}
 		return results
