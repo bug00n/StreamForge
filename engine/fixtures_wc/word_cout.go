@@ -24,11 +24,11 @@ func (key Key) Hash() uint32 {
 	return hash
 }
 
-func Mapper(line string) []contracts.Resoult[Key, int] {
+func Mapper(line string) []contracts.Result[Key, int] {
 	words := strings.Fields(line)
-	resoult := make([]contracts.Resoult[Key, int], len(words))
+	resoult := make([]contracts.Result[Key, int], len(words))
 	for i, word := range words {
-		resoult[i] = contracts.Resoult[Key, int]{
+		resoult[i] = contracts.Result[Key, int]{
 			Key: Key(word),
 			Value: 1,
 		}
@@ -44,7 +44,7 @@ func Reducer(key Key, values []int) int {
 	return sum
 }
 
-func PutResMap(resoults []contracts.Resoult[Key, int]) {
+func PutResMap(resoults []contracts.Result[Key, int]) {
 	return
 }
 

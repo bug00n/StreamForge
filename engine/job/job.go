@@ -18,8 +18,8 @@ const (
 	JobFailed
 )
 
-type Job[T any, K contracts.Key, V contracts.Value[V], R any] struct {
-	Tasks         []task.Task_Mapper[T, K, V]
+type Job[T any, K contracts.Key, V any, R any] struct {
+	Tasks         []task.TaskMapper[T, K, V]
 	Buffers       []buffer.Buffer[K, V]
 	Status        JobStatus
 	Done          chan struct{}
@@ -31,9 +31,9 @@ type Job[T any, K contracts.Key, V contracts.Value[V], R any] struct {
 	Mu            sync.Mutex
 }
 
-func MakeJob[T any, K contracts.Key, V contracts.Value[V], R any](
+func MakeJob[T any, K contracts.Key, V any, R any](
 	partitions contracts.Data[T],
-	mapper func(T) []contracts.Resoult[K, V],
+	mapper func(T) []contracts.Result[K, V],
 	reducer func(K, []V) R,
 	startReduce func(*Job[T, K, V, R]),
 	shufflePartitionsCnt int,
@@ -63,7 +63,7 @@ func MakeJob[T any, K contracts.Key, V contracts.Value[V], R any](
 		return &job, JobViewer[T, K, V, R]{job: &job}
 	}
 
-	job.Tasks = make([]task.Task_Mapper[T, K, V], (len(data)+partSize-1)/partSize)
+	job.Tasks = make([]task.TaskMapper[T, K, V], (len(data)+partSize-1)/partSize)
 	for i := 0; i < (len(data)+partSize-1)/partSize; i++ {
 		job.Tasks[i] = task.MakeMapTask(
 			data[i*partSize:min(len(data), (i+1)*partSize)],
@@ -77,7 +77,7 @@ func MakeJob[T any, K contracts.Key, V contracts.Value[V], R any](
 }
 
 func (j *Job[T, K, V, R]) putResoult(
-	resoults []contracts.Resoult[K, V],
+	resoults []contracts.Result[K, V],
 ) {
 	for i := range resoults {
 		k, v := resoults[i].Key, resoults[i].Value

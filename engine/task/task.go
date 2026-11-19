@@ -14,22 +14,22 @@ const (
     TaskFailed
 )
 
-type Task_Mapper[T any, K contracts.Key, V contracts.Value[V]] struct {
+type TaskMapper[T any, K contracts.Key, V any] struct {
 	Partition []T
-	Mapper	  func(T) []contracts.Resoult[K, V]
-	PutRes	  func(resoults []contracts.Resoult[K, V])
+	Mapper	  func(T) []contracts.Result[K, V]
+	PutRes	  func(resoults []contracts.Result[K, V])
 	Notify	  func()
 	WorkerID  int
 	Status 	  TaskStatus
 }
 
-func MakeMapTask[T any, K contracts.Key, V contracts.Value[V]] (
+func MakeMapTask[T any, K contracts.Key, V any] (
 	partition []T,
-	mapper func(T) []contracts.Resoult[K, V],
-	putRes func(resoults []contracts.Resoult[K, V]),
+	mapper func(T) []contracts.Result[K, V],
+	putRes func(resoults []contracts.Result[K, V]),
 	notify func(),
-) Task_Mapper[T, K, V] {
-	return Task_Mapper[T, K, V]{
+) TaskMapper[T, K, V] {
+	return TaskMapper[T, K, V]{
 		Partition: partition,
 		Mapper: mapper,
 		PutRes: putRes,
@@ -41,7 +41,7 @@ func MakeMapTask[T any, K contracts.Key, V contracts.Value[V]] (
 
 // ---
 
-type Task_Reducer[K contracts.Key, V contracts.Value[V], R any] struct {
+type TaskReducer[K contracts.Key, V any, R any] struct {
 	Buffer    *buffer.Buffer[K, V]
 	Reducer	  func(K, []V) R
 	PutRes	  func(K, R)
@@ -50,13 +50,13 @@ type Task_Reducer[K contracts.Key, V contracts.Value[V], R any] struct {
 	Status 	  TaskStatus
 }
 
-func MakeReduceTask[K contracts.Key, V contracts.Value[V], R any] (
+func MakeReduceTask[K contracts.Key, V any, R any] (
 	buffer *buffer.Buffer[K, V],
 	reducer func(K, []V) R,
 	putRes func(K, R),
 	notify func(),
-) Task_Reducer[K, V, R] {
-	return Task_Reducer[K, V, R]{
+) TaskReducer[K, V, R] {
+	return TaskReducer[K, V, R]{
 		Buffer: buffer,
 		Reducer: reducer,
 		PutRes: putRes,

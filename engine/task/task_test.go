@@ -10,13 +10,13 @@ import (
 
 func TestMakeMapTask(t *testing.T) {
 	partition := fixtures.Data("a a\nb").Split()
-	var stored []contracts.Resoult[fixtures.Key, int]
+	var stored []contracts.Result[fixtures.Key, int]
 	notifyCalls := 0
 
 	mapTask := MakeMapTask[string, fixtures.Key, int](
 		partition,
 		fixtures.Mapper,
-		func(results []contracts.Resoult[fixtures.Key, int]) {
+		func(results []contracts.Result[fixtures.Key, int]) {
 			stored = results
 		},
 		func() { notifyCalls++ },

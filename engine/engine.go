@@ -14,7 +14,7 @@ const defaultPartSize = 500
 
 var ErrEngineClosed = errors.New("engine is closed")
 
-type Engine[T any, K contracts.Key, V contracts.Value[V], R any] struct {
+type Engine[T any, K contracts.Key, V any, R any] struct {
 	taskManager          taskmanager.TaskManager[T, K, V, R]
 	jobs                 chan *job.Job[T, K, V, R]
 	submitMu             sync.Mutex
@@ -27,7 +27,7 @@ type Engine[T any, K contracts.Key, V contracts.Value[V], R any] struct {
 	partSize             int
 }
 
-func CreateEngine[T any, K contracts.Key, V contracts.Value[V], R any](
+func CreateEngine[T any, K contracts.Key, V any, R any](
 	mappersCnt int,
 	reducersCnt int,
 	shufflePartitionsCnt int,
@@ -66,7 +66,7 @@ func CreateEngine[T any, K contracts.Key, V contracts.Value[V], R any](
 
 func (e *Engine[T, K, V, R]) Submit(
 	partitions contracts.Data[T],
-	mapper func(T) []contracts.Resoult[K, V],
+	mapper func(T) []contracts.Result[K, V],
 	reducer func(K, []V) R,
 ) (job.JobViewer[T, K, V, R], error) {
 	e.submitMu.Lock()
@@ -88,7 +88,6 @@ func (e *Engine[T, K, V, R]) Submit(
 	return viewer, nil
 }
 
-// Close stops accepting jobs, drains accepted work, and waits for workers to exit.
 func (e *Engine[T, K, V, R]) Close() {
 	e.closeOnce.Do(func() {
 		e.submitMu.Lock()

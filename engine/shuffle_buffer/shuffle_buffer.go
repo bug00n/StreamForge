@@ -5,7 +5,7 @@ import (
 	"github.com/bug00n/StreamForge/engine/contracts"
 )
 
-type Buffer[K contracts.Key, V contracts.Value[V]] struct {
+type Buffer[K contracts.Key, V any] struct {
 	Mu 		sync.Mutex
 	Shuffle	map[K][]V
 }

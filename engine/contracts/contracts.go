@@ -9,11 +9,7 @@ type Key interface {
 	Hash()	uint32
 }
 
-type Value[T any] interface {
-	
-}
-
-type Resoult[K Key, V Value[V]] struct {
+type Result[K Key, V any] struct {
 	Key		K
 	Value	V
 }

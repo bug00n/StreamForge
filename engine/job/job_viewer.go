@@ -4,7 +4,7 @@ import (
 	"github.com/bug00n/StreamForge/engine/contracts"
 )
 
-type JobViewer[T any, K contracts.Key, V contracts.Value[V], R any] struct {
+type JobViewer[T any, K contracts.Key, V any, R any] struct {
 	job	*Job[T, K, V, R]
 }
 
