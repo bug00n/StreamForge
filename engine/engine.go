@@ -19,10 +19,10 @@ var ErrEmptyData = errors.New("input data is nil")
 
 type Engine[T any, K contracts.Key, V any, R any] struct {
 	taskManager          taskmanager.TaskManager[T, K, V, R]
-	jobs                 chan *job.Job[T, K, V, R]
-	submitMu             sync.Mutex
-	closeOnce            sync.Once
-	closed               bool
+	jobsMu   sync.Mutex
+	jobsCond *sync.Cond
+	jobs     []*job.Job[T, K, V, R]
+	closed   bool
 	schedulerWG          sync.WaitGroup
 	mapWorkersWG         sync.WaitGroup
 	reduceWorkersWG      sync.WaitGroup
@@ -47,10 +47,12 @@ func CreateEngine[T any, K contracts.Key, V any, R any](
 
 	e := &Engine[T, K, V, R]{
 		taskManager:          taskmanager.MakeManager[T, K, V, R](mappersCnt, reducersCnt),
-		jobs:                 make(chan *job.Job[T, K, V, R]),
+		jobs:                 make([]*job.Job[T, K, V, R], 0),
 		shufflePartitionsCnt: shufflePartitionsCnt,
 		partSize:             defaultPartSize,
 	}
+
+	e.jobsCond = sync.NewCond(&e.jobsMu)
 
 	e.schedulerWG.Add(1)
 	e.mapWorkersWG.Add(mappersCnt)
@@ -72,13 +74,6 @@ func (e *Engine[T, K, V, R]) Submit(
 	mapper func(T) ([]contracts.Result[K, V], error),
 	reducer func(K, []V) (R, error),
 ) (job.JobViewer[T, K, V, R], error) {
-	e.submitMu.Lock()
-	defer e.submitMu.Unlock()
-
-	if e.closed {
-		return job.JobViewer[T, K, V, R]{}, ErrEngineClosed
-	}
-
 	if mapper == nil {
 		return job.JobViewer[T, K, V, R]{}, ErrEmptyCallback_Mapper
 	}
@@ -91,6 +86,13 @@ func (e *Engine[T, K, V, R]) Submit(
 		return job.JobViewer[T, K, V, R]{}, ErrEmptyData
 	}
 
+	e.jobsMu.Lock()
+
+	if e.closed {
+		e.jobsMu.Unlock()
+		return job.JobViewer[T, K, V, R]{}, ErrEngineClosed
+	}
+
 	newJob, viewer := job.MakeJob(
 		partitions,
 		mapper,
@@ -99,20 +101,24 @@ func (e *Engine[T, K, V, R]) Submit(
 		e.shufflePartitionsCnt,
 		e.partSize,
 	)
-	e.jobs <- newJob
+	
+	e.jobs = append(e.jobs, newJob)
+	e.jobsCond.Signal()
+
+	e.jobsMu.Unlock()
+
 	return viewer, nil
 }
 
 func (e *Engine[T, K, V, R]) Shutdown() {
-	e.closeOnce.Do(func() {
-		e.submitMu.Lock()
-		e.closed = true
-		close(e.jobs)
-		e.submitMu.Unlock()
-	})
+	e.jobsMu.Lock()
+    defer e.jobsMu.Unlock()
+
+    e.closed = true
+    e.jobsCond.Broadcast()
 }
 
-func (e *Engine[T, K, V, R]) Wait() {
+func (e *Engine[T, K, V, R]) wait() {
 	e.schedulerWG.Wait()
 	e.mapWorkersWG.Wait()
 
@@ -122,7 +128,7 @@ func (e *Engine[T, K, V, R]) Wait() {
 
 func (e *Engine[T, K, V, R]) Close() {
 	e.Shutdown()
-	e.Wait()
+	e.wait()
 }
 
 func (e *Engine[T, K, V, R]) startReduce(j *job.Job[T, K, V, R]) {
@@ -141,18 +147,38 @@ func (e *Engine[T, K, V, R]) startReduce(j *job.Job[T, K, V, R]) {
 }
 
 func (e *Engine[T, K, V, R]) scheduler() {
-	defer e.schedulerWG.Done()
-	for currentJob := range e.jobs {
-		currentJob.Mu.Lock()
-		if currentJob.Status == job.JobPending {
-			currentJob.Status = job.JobRunning
-		}
-		currentJob.Mu.Unlock()
-		for _, mapTask := range currentJob.Tasks {
-			e.taskManager.PutMapTask(mapTask)
-		}
-	}
-	e.taskManager.CloseMapTasks()
+    defer e.schedulerWG.Done()
+
+    for {
+        e.jobsMu.Lock()
+
+        for len(e.jobs) == 0 && !e.closed {
+            e.jobsCond.Wait()
+        }
+
+        if len(e.jobs) == 0 && e.closed {
+            e.jobsMu.Unlock()
+            break
+        }
+
+        currentJob := e.jobs[0]
+        e.jobs[0] = nil
+        e.jobs = e.jobs[1:]
+
+        e.jobsMu.Unlock()
+
+        currentJob.Mu.Lock()
+        if currentJob.Status == job.JobPending {
+            currentJob.Status = job.JobRunning
+        }
+        currentJob.Mu.Unlock()
+
+        for _, mapTask := range currentJob.Tasks {
+            e.taskManager.PutMapTask(mapTask)
+        }
+    }
+
+    e.taskManager.CloseMapTasks()
 }
 
 func (e *Engine[T, K, V, R]) workerMap() {
