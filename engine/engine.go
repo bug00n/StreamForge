@@ -86,13 +86,6 @@ func (e *Engine[T, K, V, R]) Submit(
 		return job.JobViewer[T, K, V, R]{}, ErrEmptyData
 	}
 
-	e.jobsMu.Lock()
-
-	if e.closed {
-		e.jobsMu.Unlock()
-		return job.JobViewer[T, K, V, R]{}, ErrEngineClosed
-	}
-
 	newJob, viewer := job.MakeJob(
 		partitions,
 		mapper,
@@ -101,6 +94,13 @@ func (e *Engine[T, K, V, R]) Submit(
 		e.shufflePartitionsCnt,
 		e.partSize,
 	)
+
+	e.jobsMu.Lock()
+
+	if e.closed {
+		e.jobsMu.Unlock()
+		return job.JobViewer[T, K, V, R]{}, ErrEngineClosed
+	}
 	
 	e.jobs = append(e.jobs, newJob)
 	e.jobsCond.Signal()
